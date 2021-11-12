@@ -5,6 +5,72 @@ open Shared
 open Browser
 open Feliz.Bulma.Operators
 
+
+type Acr = 
+   MitId
+   | NemIdPersonal
+   | NemIdEmployee
+   | SeBankID
+   | NoBankID
+   | Vipps
+   | FTN
+   | Itsme
+   | EID
+   | Sofort
+   with member x.AcrValue
+         with get() = 
+             match x with
+             MitId -> "urn:grn:authn:dk:mitid:low"
+             | NemIdPersonal -> "urn:grn:authn:dk:nemid:poces"
+             | NemIdEmployee -> "urn:grn:authn:dk:nemid:voces"
+             | SeBankID -> "urn:grn:authn:se:bankid:another-device"
+             | NoBankID -> "urn:grn:authn:no:bankid"
+             | Vipps -> "urn:grn:authn:no:vipps"
+             | FTN -> "urn:grn:authn:fi:all"
+             | Itsme -> "urn:grn:authn:itsme:basic"
+             | EID -> "urn:grn:authn:be:eid:verified"
+             | Sofort -> "urn:grn:authn:de:sofort"
+        static member All 
+                with get() = 
+                   [
+                        MitId
+                        NemIdPersonal
+                        NemIdEmployee
+                        //SeBankID
+                        NoBankID
+                        Vipps
+                        FTN
+                        Itsme
+                        EID
+                        Sofort
+                   ]
+        member x.DisplayText
+           with get() = 
+               match x with
+                MitId -> "MitId"
+                | NemIdPersonal -> "NemId - Personal"
+                | NemIdEmployee -> "NemId - Employee"
+                | SeBankID -> "SE BankID"
+                | NoBankID -> "NO BankID"
+                | Vipps -> "Vipps"
+                | FTN -> "Finnish Trust Network - all"
+                | Itsme -> "Itsme"
+                | EID -> "BE eID"
+                | Sofort -> "Sofort"
+        member x.Icon
+           with get() = 
+               //should return the url of a logo m,atching the acr
+               match x with
+               MitId -> "fas fa-book"
+               | NemIdPersonal -> "fas fa-book"
+               | NemIdEmployee -> "fas fa-book"
+               | SeBankID -> "fas fa-book"
+               | NoBankID -> "fas fa-book"
+               | Vipps -> "fas fa-book"
+               | FTN -> "fas fa-book"
+               | Itsme -> "fas fa-book"
+               | EID -> "fas fa-book"
+               | Sofort -> "fas fa-book"
 type Display =
     Login
     | LoggedIn of string
@@ -39,27 +105,31 @@ type Payload = Fable.JsonProvider.Generator<"""{"iss":"https://test.criipto.id",
     "exp":1636724971
 }""">
 type Msg =
-    | Login
+    | Login of Acr
     | LoggedIn of string
     | Rejected
-let options : Oidc.Options = 
-    {
-        authority = "https://fablecriipto-test.criipto.id"               
-        client_id = "urn:my:application:identifier:1744"               
-        redirect_uri = "http://localhost:8080/"            
-        responseType = "id_token" 
-        post_logout_redirect_uri = "http://localhost:8080/logout"            
-        acr_values = "urn:grn:authn:dk:mitid:low"
-        userStore = Oidc.WebStorageStateStore({store = sessionStorage})         
-   } 
-let userManager = 
-   Oidc.UserManager(
-       options
-   )
 
-let login () =
+
+
+let login (acr : Acr) =
     async {
-        printfn "%A" options
+        let options : Oidc.Options = 
+            let url = 
+                window.location.href.Split("?") 
+                |> Array.head
+            {
+                authority = "https://fablecriipto-test.criipto.id"               
+                client_id = "urn:my:application:identifier:1744"               
+                redirect_uri = url            
+                responseType = "id_token" 
+                post_logout_redirect_uri = "/logout"            
+                acr_values = acr.AcrValue
+                userStore = Oidc.WebStorageStateStore({store = sessionStorage})         
+        } 
+        let userManager = 
+            Oidc.UserManager(
+                options
+            )
         do! userManager.signinRedirect()
         return Success
     }
@@ -86,17 +156,17 @@ let init () : Model * Cmd<Msg> =
         match window.location.href |> tryReadToken with
         Some token -> Cmd.ofMsg (LoggedIn(token))
         | _ -> Cmd.none
-    let model = { Display =  Display.Login }
+    let model = { Display =  Display.Login}
 
     model, cmd
 
 let update (msg: Msg) (model: Model) : Model * Cmd<Msg> =
     match msg with
-    | Login ->
+    | Login acr ->
         let cmd = 
             match window.location.href |> tryReadToken with
             Some token -> Cmd.ofMsg (LoggedIn(token))
-            | _ -> Cmd.OfAsync.either login () 
+            | _ -> Cmd.OfAsync.either login acr 
                                     (fun _ -> 
                                       match window.location.href |> tryReadToken with
                                       Some token -> LoggedIn(token)
@@ -126,17 +196,30 @@ let navBrand =
     ]
 
 let containerBox (model: Model) (dispatch: Msg -> unit) =
-    match model.Display with
-    Display.Login ->
-        Bulma.box [
-            Bulma.control.p [
-                Bulma.button.a [
-                    color.isPrimary
-                    prop.onClick (fun _ -> dispatch Login)
-                    prop.text "Login"
+    let providers = 
+        Acr.All
+        |> List.map(fun acr ->
+            Bulma.panelBlock.div [
+                color.hasBackgroundGreyLight
+                prop.className "is-active"
+                prop.children [
+                    Bulma.panelIcon [
+                        Html.i [ prop.className acr.Icon ]
+                    ]
+                    Html.a [
+                        color.isPrimary
+                        prop.onClick (fun _ -> acr |> Login |> dispatch)
+                        prop.text acr.DisplayText
+                    ]
                 ]
             ]
-        ]
+        )
+    match model.Display with
+    Display.Login ->
+        Bulma.panelHeading [ prop.text "Choose a login mechanism" ]
+        ::providers
+        |> Bulma.panel
+        
     | Display.LoggedIn token ->
         let payload = token |> Payload
         let authenticationDateString = 
@@ -176,14 +259,10 @@ let containerBox (model: Model) (dispatch: Msg -> unit) =
                             ]
                         ]
                         Bulma.mediaContent [
-                            Bulma.title.p [
+                            Bulma.content [
                                 title.is4
-                                ++ color.isDark
+                                text.isItalic
                                 payload.name |> prop.text 
-                            ]
-                            Bulma.subtitle.p [
-                                title.is6
-                                payload.birthdate |> prop.text 
                             ]
                         ]
                     ]
