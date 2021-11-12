@@ -1,0 +1,33 @@
+{
+    "$schema": "http://json.schemastore.org/template",
+    "author": "Criipto Aps",
+    "classifications": [ "Common", "Web", "Fable"],
+    "identity": "Criipto.Fable Sample",
+    "name": "Criipto Fable Sample",
+    "shortName": "CriiptoFableSample",
+    "tags": {
+      "language": "F#",
+      "type": "project"
+    },
+    "symbols": {
+        "domain":{
+            "type" : "parameter",
+            "replaces" : "fablecriipto-test.criipto.id",
+            "isRequired": true
+        },
+        "clientid":{
+            "type" : "parameter",
+            "dataType" : "text",
+            "replaces": "urn:my:application:identifier:1744",
+            "isRequired": true
+        }
+    },
+    "sources": [
+        {
+          "exclude" : ".git",
+          "modifiers": [{
+            "exclude": [ ".github/**",".template.config/**", "**/bin/","**/obj","paket.lock",".git*"]
+          }]
+        }
+      ]
+  }
