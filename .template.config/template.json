@@ -1,6 +1,6 @@
 {
     "$schema": "http://json.schemastore.org/template",
-    "author": "Criipto Aps",
+    "author": "Criipto ApS",
     "classifications": [ "Common", "Web", "Fable"],
     "identity": "Criipto.Fable Sample",
     "name": "Criipto Fable Sample",
